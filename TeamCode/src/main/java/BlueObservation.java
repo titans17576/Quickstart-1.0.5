@@ -52,23 +52,23 @@ public class BlueObservation extends OpMode {
 
     public void pathUpdate() {
         switch (pathState) {
-            case 1:
+            case 1: \\ sytem in place to score
                 auto.startSpecScore();
                 setPathState(2);
                 break;
-            case 2:
+            case 2: //drive to goal + scores
                 if(auto.notBusy()) {
                     auto.follower.followPath(auto.scorePreload, false);
                     setPathState(3);
                 }
                 break;
-            case 3:
+            case 3: //everthing goes back down
                 if(auto.notBusy()) {
                     auto.startPostSpecScore();
                     setPathState(4);
                 }
                 break;
-            case 4:
+            case 4: //
                 if(auto.notBusy()) {
                     follower.setMaxPower(0.8);
                     auto.follower.followPath(auto.moveCurve, true);
