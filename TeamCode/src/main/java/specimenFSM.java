@@ -15,6 +15,7 @@ public class specimenFSM {
     }
     public enum ClawWristState{
         DOWN,
+        MID,
 
         UP
     }
@@ -29,14 +30,15 @@ public class specimenFSM {
     // Position variables
 
     final double claw_closed_position = 0;
-    final double claw_open_position = 0.33;
-    final double claw_down_position = 1; // Insert a number
-    final double claw_up_position = 0.81; // Insert a number
+    final double claw_open_position = 0.4;
+    final double claw_down_position = 0.92; // Insert a number
+    final double claw_mid_position = 0.94;
+    final double claw_up_position = 0.70; // Insert a number
 
     final int position_tolerance = 15;
     final int lift_zero_position = 0;
-    int lift_low_position = 300;
-    final int lift_mid_position = 850; // max we could reach was like 1500 ticks so idk
+    final int lift_low_position = 300;
+    final int lift_mid_position = 1125; // max we could reach was like 1500 ticks so idk
     final int lift_high_position = 1450;
     public boolean actionBusy = false;
 
@@ -64,6 +66,9 @@ public class specimenFSM {
     }
     public void initialize() {
         R.liftMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        R.liftMotor2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        R.specArm.setPosition(claw_down_position);
+        R.specArm2.setPosition(0.33);
     }
 
     // Method to move to a targeted position
@@ -78,6 +83,9 @@ public class specimenFSM {
             R.liftMotor.setTargetPosition(position);
             R.liftMotor.setPower(power);
             R.liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            R.liftMotor2.setTargetPosition(position);
+            R.liftMotor2.setPower(power);
+            R.liftMotor2.setMode(DcMotor.RunMode.RUN_TO_POSITION);
             //R.liftMotor.setPower(0);
             actionBusy = true;
         }
@@ -149,53 +157,51 @@ public class specimenFSM {
     }
     public void testUpdate(Gamepad currentGamepad, Gamepad previousGamepad) {
         updateTelemetry("Test");
-        if (currentGamepad.a && !previousGamepad.a) {
-            R.claw.setPosition(0.2);
-        } else if (currentGamepad.b && !previousGamepad.b) {
-            R.claw.setPosition(0.42);
-        }
-        if (currentGamepad.dpad_right && !previousGamepad.dpad_right) {
-            R.specArm.setPosition(0.81);
-        } else if (currentGamepad.dpad_left && !previousGamepad.dpad_left) {
-            R.specArm.setPosition(1);
-        }
         if (currentGamepad.right_bumper && !previousGamepad.right_bumper) {
-            R.liftMotor.setTargetPosition(1600);
-            R.liftMotor.setPower(1);
-            R.liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            R.arm.setPosition(1);
-
+            setLiftState(LiftState.MID);
+            R.specArm2.setPosition(0.96);
+            moveWristTo(claw_up_position);
         }
         if (currentGamepad.left_trigger >= 0.5 && previousGamepad.left_trigger < 0.5) {
-            R.liftMotor.setTargetPosition(2600);
-            R.liftMotor.setPower(1);
-            R.liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
+            setLiftState(LiftState.HIGH);
+            moveWristTo(claw_down_position);
         }
         if (currentGamepad.right_trigger >= 0.5 && previousGamepad.right_trigger < 0.5) {
-            R.liftMotor.setTargetPosition(1440);
-            R.liftMotor.setPower(1);
-            R.liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
+            setLiftState(LiftState.LOW);
         }
         if (currentGamepad.left_bumper && !previousGamepad.left_bumper) {
-            R.liftMotor.setTargetPosition(0);
-            R.liftMotor.setPower(0.8);
-            R.liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
+            moveWristTo(claw_down_position);
+            R.specArm2.setPosition(0.33);
+            setLiftState(LiftState.ZERO);
         }
-        if (R.liftMotor.getCurrentPosition() < 20 && R.liftMotor.getTargetPosition() == 0) {
-            R.liftMotor.setPower(0);
-            R.liftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        } else if (currentGamepad.y && !previousGamepad.y) {
-            R.liftMotor.setPower(0);
-            R.liftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        switch (clawGrabState) {
+            // Lift set to 0
+            case CLOSED:
+                telemetry.addData("Claw Moved", "TRUE");
+                // State inputs
+                if (currentGamepad.a && !previousGamepad.a) {
+                    setGrabState(ClawGrabState.OPEN);
+                }
+                updateTelemetry("CLOSED");
+                break;
+            case OPEN:
+                telemetry.addData("Claw Moved", "TRUE");
+                if (currentGamepad.a && !previousGamepad.a) {
+                    setGrabState(ClawGrabState.CLOSED);
+                }
+                updateTelemetry("OPEN");
+                break;
         }
-        if (R.liftMotor.getTargetPosition() < 0) {
-            R.liftMotor.setTargetPosition(0);
-        } else if (R.liftMotor.getTargetPosition() > 3000) {
-            R.liftMotor.setTargetPosition(3000);
+        if (currentGamepad.dpad_left && !previousGamepad.dpad_left){
+            moveWristTo(claw_up_position);
         }
+        if (currentGamepad.dpad_right && !previousGamepad.dpad_right){
+            moveWristTo(claw_down_position);
+        }
+        if (currentGamepad.x && !previousGamepad.x){
+            moveWristTo(R.specArm.getPosition() + 0.02);
+        }
+        testUpdate();
     }
     public void update(){
         switch(clawGrabState) {
@@ -212,6 +218,9 @@ public class specimenFSM {
                 break;
             case UP:
                 moveWristTo(claw_up_position);
+                break;
+            case MID:
+                moveWristTo(claw_mid_position);
                 break;
         }
 
@@ -231,7 +240,33 @@ public class specimenFSM {
         }
 
     }
-    public void setGrabState(ClawGrabState state){
+    public void testUpdate() {
+        switch(clawGrabState) {
+            case CLOSED:
+                moveGrabTo(claw_closed_position);
+                break;
+            case OPEN:
+                moveGrabTo(claw_open_position);
+                break;
+        }
+        switch (liftState){
+            case ZERO:
+                moveLiftTo(lift_zero_position,0.8);
+                break;
+            case LOW:
+                moveLiftTo(lift_low_position,1);
+                break;
+            case MID:
+                moveLiftTo(lift_mid_position,1);
+                break;
+            case HIGH:
+                moveLiftTo(lift_high_position,1);
+                break;
+        }
+    }
+
+
+        public void setGrabState(ClawGrabState state){
         clawGrabState = state;
     }
     public void setWristState(ClawWristState state){
