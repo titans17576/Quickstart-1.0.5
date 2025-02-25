@@ -29,19 +29,25 @@ public class Auto {
 
     public specimenFSM SpecimenFSM;
     public scoopFSM ScoopFSM;
-
     private Side side;
     public Timer transferTimer = new Timer();
+    public Timer bucketTransferTimer = new Timer();
+    public Timer bucketScoreTimer = new Timer();
     public Timer specScoreTimer = new Timer();
     public Timer depositTimer = new Timer();
     public Timer postSpecScoreTimer = new Timer();
     public int transferState = -1, specimenNum = -1;
+    public int bucketTransferState = -1;
+
+    public int bucketScoreState = -1;
     public int depositState = -1;
     public int scoreSpecState = -1;
     public int postSpecScoreState = -1;
     public int postSpecScoreState2 = -1;
     public int fakeTransferState = -1;
     public int parkState = -1;
+
+    public int extendState = -1;
     public Path forwards, backwards;
 
 
@@ -285,6 +291,95 @@ public class Auto {
         }
     }
 
+    public void bucketTransfer(){
+        switch(bucketTransferState){
+            case 1:
+                R.intakeArm.setPosition(0.62);
+                R.intakeWrist1.setPosition(0.11);
+                R.specArm2.setPosition(1);
+                SpecimenFSM.setGrabState(specimenFSM.ClawGrabState.OPEN);
+                bucketTransferTimer.resetTimer();
+                setBucketTransferState(2);
+                break;
+            case 2:
+                if(bucketTransferTimer.getElapsedTimeSeconds() > 0.5){
+                    R.intakeArm.setPosition(0.23);
+                    R.intakeWrist1.setPosition(0.7);
+                    R.intakeWrist2.setPosition(0.79);
+                    R.extendo.setPosition(0.3);
+                    bucketTransferTimer.resetTimer();
+                    setBucketTransferState(3);
+                }
+                break;
+            case 3:
+                if(bucketTransferTimer.getElapsedTimeSeconds() > 0.5){
+                    SpecimenFSM.setGrabState(specimenFSM.ClawGrabState.CLOSED);
+                    R.intakeArm.setPosition(0.5);
+                    bucketTransferTimer.resetTimer();
+                    setBucketTransferState(4);
+                }
+                break;
+            case 4:
+                if(bucketTransferTimer.getElapsedTimeSeconds() > 0.5){
+                    R.intakeArm.setPosition(0.59);
+                    bucketTransferTimer.resetTimer();
+                    setBucketTransferState(5);
+                }
+                break;
+            case 5:
+                if(bucketTransferTimer.getElapsedTimeSeconds() > 0.5){
+                    setBucketTransferState(-1);
+                }
+                break;
+        }
+    }
+    public void bucketScore(){
+        switch(bucketScoreState){
+            case 1:
+                bucketScoreTimer.resetTimer();
+                SpecimenFSM.setLiftState(specimenFSM.LiftState.HIGH);
+                setBucketScoreState(3);
+                break;
+            case 2:
+                if(bucketScoreTimer.getElapsedTimeSeconds() > 0.5){
+                    R.specArm2.setPosition(0.5);
+                    bucketScoreTimer.resetTimer();
+                    setBucketScoreState(3);
+                }
+                break;
+            case 3:
+                if(bucketScoreTimer.getElapsedTimeSeconds() > 0.5){
+                    SpecimenFSM.setGrabState(specimenFSM.ClawGrabState.OPEN);
+                    bucketScoreTimer.resetTimer();
+                    setBucketScoreState(4);
+                }
+                break;
+            case 4:
+                if(bucketScoreTimer.getElapsedTimeSeconds() > 0.5){
+                    R.specArm2.setPosition(0.1);
+                    bucketScoreTimer.resetTimer();
+                    setBucketScoreState(5);
+                }
+                break;
+            case 5:
+                if(bucketScoreTimer.getElapsedTimeSeconds() > 0.5){
+                    SpecimenFSM.setLiftState(specimenFSM.LiftState.ZERO);
+                    bucketScoreTimer.resetTimer();
+                    setBucketScoreState(6);
+                }
+                break;
+            case 6:
+                if(bucketScoreTimer.getElapsedTimeSeconds() > 0.5){
+                    setBucketScoreState(-1);
+                }
+
+
+
+
+
+        }
+    }
+
     public void fakeTransfer(){
         switch(fakeTransferState){
             case 1:
@@ -440,9 +535,30 @@ public class Auto {
         }
     }
 
+    public void extend(){
+        switch(extendState){
+            case 1:
+                R.extendo.setPosition(0.3);
+                break;
+            case 2:
+                setExtendState(-1);
+                break;
+        }
+    }
+
     public void setTransferState(int x) {
         transferState = x;
         telemetry.addData("Transfer", x);
+    }
+
+    public void setBucketTransferState(int x){
+        bucketTransferState = x;
+        telemetry.addData("Bucket Transfer", x);
+    }
+
+    public void setBucketScoreState(int x){
+        bucketScoreState = x;
+        telemetry.addData("Bucket Score", x);
     }
 
     public void setFakeTransferState(int x) {
@@ -473,12 +589,30 @@ public class Auto {
         telemetry.addData("Park", x);
     }
 
+    public void setExtendState(int x){
+        extendState = x;
+        telemetry.addData("Extend", x);
+    }
+
+
     public void startTransfer(int specimenNum) {
         if (actionNotBusy()) {
             setTransferState(1);
             this.specimenNum = specimenNum;
         }
 
+    }
+
+    public void startBucketTransfer(){
+        if(actionNotBusy()){
+            setBucketTransferState(1);
+        }
+    }
+
+    public void startBucketScore(){
+        if(actionNotBusy()){
+            setBucketScoreState(1);
+        }
     }
     public void startDeposit(){
         if (actionNotBusy()) {
@@ -504,6 +638,9 @@ public class Auto {
 
     public void startPark(){
         setParkState(1);
+    }
+    public void startExtend() {
+        setExtendState(1);
     }
 
 
